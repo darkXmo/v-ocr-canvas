@@ -1,5 +1,5 @@
 <template>
-  <div class="target">
+  <div class="target" ref="targetRef">
     <img ref="imgRef" class="img" src="/1.jpg" @load="handleLoad" />
     <div id="container"></div>
   </div>
@@ -13,6 +13,16 @@ const imgRef = ref<HTMLImageElement>();
 type EventParams = [type: keyof DocumentEventMap, func: (e: any) => void];
 let eventList: EventParams[] = [];
 let stage: Konva.Stage;
+let draggingWindow: boolean = false;
+const draggingContext = {
+  x: 0,
+  y: 0,
+  scrollTop: 0,
+  scrollLeft: 0,
+};
+let time = 0;
+const targetRef = ref<HTMLDivElement>();
+let timer: number | null;
 const handleLoad = () => {
   const img = imgRef.value as HTMLImageElement;
   const width = img.width;
@@ -46,6 +56,19 @@ const handleLoad = () => {
   layer.add(selectionRectangle);
 
   let x1: number, y1: number, x2: number, y2: number;
+  stage.on('mousedown', (e: KonvaEventObject<MouseEvent>) => {
+    if (e.target === stage && !e.evt.ctrlKey) {
+      // 鼠标拖拽滑动窗口
+      draggingWindow = true;
+      stage.container().style.cursor = 'grab';
+      draggingContext.x = e.evt.screenX;
+      draggingContext.y = e.evt.screenY;
+      const targetElement = targetRef.value as HTMLDivElement;
+      draggingContext.scrollTop = targetElement.scrollTop;
+      draggingContext.scrollLeft = targetElement.scrollLeft;
+      return;
+    }
+  });
   stage.on('mousedown touchstart', (e: KonvaEventObject<MouseEvent>) => {
     // do nothing if we mousedown on any shape
     if (e.target !== stage || !e.evt.ctrlKey) {
@@ -63,6 +86,26 @@ const handleLoad = () => {
     selectionRectangle.visible(true);
     selectionRectangle.width(0);
     selectionRectangle.height(0);
+  });
+
+  stage.on('mousemove', (e: KonvaEventObject<MouseEvent>) => {
+    if (!selectionRectangle.visible()) {
+      if (draggingWindow) {
+        if (timer) {
+          return;
+        }
+        const start = new Date().getTime();
+        const offsetX = e.evt.screenX - draggingContext.x;
+        const offsetY = e.evt.screenY - draggingContext.y;
+        const targetElement = targetRef.value as HTMLDivElement;
+        targetElement.scrollTop = draggingContext.scrollTop - offsetY;
+        targetElement.scrollLeft = draggingContext.scrollLeft - offsetX;
+        timer = setTimeout(() => {
+          timer = null;
+        }, 16);
+      }
+      return;
+    }
   });
 
   stage.on('mousemove touchmove', (e: KonvaEventObject<MouseEvent>) => {
@@ -88,6 +131,9 @@ const handleLoad = () => {
   stage.on('mouseup touchend', (e) => {
     // do nothing if we didn't start selection
     if (!selectionRectangle.visible()) {
+      // 结束鼠标拖拽滑动窗口
+      draggingWindow = false;
+      stage.container().style.cursor = 'default';
       return;
     }
     e.evt.preventDefault();
@@ -121,23 +167,23 @@ const handleLoad = () => {
       });
       transforming = true;
     });
-    rect.on('dragend', () => {
-      console.log([
-        Math.round(rect.x()),
-        Math.round(rect.y()),
-        Math.round(rect.x() + rect.width()),
-        Math.round(rect.y() + rect.height()),
-      ]);
-    });
-    console.log([
-      Math.round(rect.x()),
-      Math.round(rect.y()),
-      Math.round(rect.x() + rect.width()),
-      Math.round(rect.y() + rect.height()),
-    ]);
-    rect.on('move', () => {
-      console.log('move');
-    });
+    // rect.on('dragend', () => {
+    //   console.log([
+    //     Math.round(rect.x()),
+    //     Math.round(rect.y()),
+    //     Math.round(rect.x() + rect.width()),
+    //     Math.round(rect.y() + rect.height()),
+    //   ]);
+    // });
+    // console.log([
+    //   Math.round(rect.x()),
+    //   Math.round(rect.y()),
+    //   Math.round(rect.x() + rect.width()),
+    //   Math.round(rect.y() + rect.height()),
+    // ]);
+    // rect.on('move', () => {
+    //   console.log('move');
+    // });
     layer.add(rect);
     tr.nodes([rect]);
   });
@@ -166,12 +212,12 @@ const handleLoad = () => {
   stage.on('mouseup', (e: KonvaEventObject<MouseEvent>) => {
     if (tr.nodes().length > 0 && transforming) {
       const node = tr.nodes()[0];
-      console.log([
-        Math.round(node.x()),
-        Math.round(node.y()),
-        Math.round(node.x() + node.width()),
-        Math.round(node.y() + node.height()),
-      ]);
+      // console.log([
+      //   Math.round(node.x()),
+      //   Math.round(node.y()),
+      //   Math.round(node.x() + node.width()),
+      //   Math.round(node.y() + node.height()),
+      // ]);
       transforming = false;
     }
   });
@@ -202,6 +248,9 @@ onBeforeUnmount(() => {
 <style lang="less" scoped>
 div.target {
   position: relative;
+  overflow: auto;
+  height: 100vh;
+  width: 100vw;
   div#container {
     top: 0;
     z-index: 9;
