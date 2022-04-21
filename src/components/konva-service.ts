@@ -1,12 +1,6 @@
-import { Ref, ref } from 'vue';
+import { ref } from 'vue';
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
-import { Stage } from 'konva/lib/Stage';
-type EventParams = [type: keyof DocumentEventMap, func: (e: any) => void];
-const randomHex = () =>
-  `#${Math.floor(Math.random() * 0xffffff)
-    .toString(16)
-    .padEnd(6, '0')}`;
 /** 新建Rect */
 const rectItemInit = (config: {
   x: number;
@@ -17,7 +11,7 @@ const rectItemInit = (config: {
   const rect = new Konva.Rect({
     ...config,
     draggable: true,
-    fill: `${randomHex()}33`,
+    fill: `#ffffff33`,
     stroke: '#2d3137',
     strokeWidth: 2,
     name: 'rect',
@@ -75,10 +69,10 @@ const selectionRectInit = (
     }
 
     selectionRectangle.setAttrs({
-      x: Math.min(x1, x2),
-      y: Math.min(y1, y2),
-      width: Math.abs(x2 - x1),
-      height: Math.abs(y2 - y1),
+      x: Math.min(x1, x2) / stage.scaleX(),
+      y: Math.min(y1, y2) / stage.scaleY(),
+      width: Math.abs(x2 - x1) / stage.scaleX(),
+      height: Math.abs(y2 - y1) / stage.scaleY(),
     });
   });
   stage.on('mouseup touchend', (e) => {
@@ -235,38 +229,19 @@ export default function InitStage() {
   let imgWidth: number;
 
   let times = 4;
-  let zoomTimer: number | null = null;
   /** 放大 */
   const zoomIn = () => {
-    if (zoomTimer) {
-      return;
-    }
     if (times <= 8 && imgWidth * (times / 4) <= 4000) {
       times *= 2;
     }
     imgResize();
-    zoomTimer = setTimeout(() => {
-      if (zoomTimer) {
-        clearTimeout(zoomTimer);
-      }
-      zoomTimer = null;
-    }, 500);
   };
   /** 缩小 */
   const zoomOut = () => {
-    if (zoomTimer) {
-      return;
-    }
     if (times >= 2) {
       times /= 2;
     }
     imgResize();
-    zoomTimer = setTimeout(() => {
-      if (zoomTimer) {
-        clearTimeout(zoomTimer);
-      }
-      zoomTimer = null;
-    }, 500);
   };
   let stage: Konva.Stage;
   /** 放大缩小后调整img和konva的宽高 */
@@ -298,14 +273,7 @@ export default function InitStage() {
   };
   const getAllRect = () => {
     if (stage) {
-      const zoom = times / 4;
-      // return (stage.find('.rect') as Array<Konva.Rect>).map(item => {
-      //   // 转化成标准规格下的大小
-      //   const newRect = item.clone({
-      //     x: item.x()
-      //   });
-      // });
-      return [];
+      return stage.find('.rect') as Array<Konva.Rect>;
     }
     return [];
   };
@@ -314,6 +282,7 @@ export default function InitStage() {
     zoomIn,
     zoomOut,
     handleLoad,
+    getAllRect,
     imgRef,
   };
 }

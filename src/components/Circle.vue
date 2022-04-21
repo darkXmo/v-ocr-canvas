@@ -8,6 +8,7 @@
           <button @click="zoomIn">+</button>
         </li>
         <li><button @click="zoomOut">-</button></li>
+        <li><button @click="showAllRect">=</button></li>
       </ul>
     </div>
   </div>
@@ -16,9 +17,11 @@
 <script lang="ts" setup>
 import { onBeforeUnmount, onMounted } from 'vue';
 import logic from './konva-service';
-const { clear, zoomIn, zoomOut, handleLoad, imgRef } = logic();
-defineExpose({ zoomIn, zoomOut });
-
+const { clear, zoomIn, zoomOut, handleLoad, imgRef, getAllRect } = logic();
+defineExpose({ zoomIn, zoomOut, getAllRect });
+const showAllRect = () => {
+  getAllRect();
+};
 onBeforeUnmount(clear);
 </script>
 
