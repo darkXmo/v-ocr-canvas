@@ -1,0 +1,37 @@
+div.ocr-canvas-container {
+  position: relative;
+  div.ocr-canvas {
+    position: relative;
+    overflow: auto;
+    width: 100%;
+    max-height: 100%;
+    div#container {
+      top: 0;
+      z-index: 9;
+      position: absolute;
+    }
+   
+  }
+  div.tools {
+    top: 0;
+    left: 0;
+    z-index: 10;
+    cursor: pointer;
+    position: absolute;
+    > ul {
+      list-style: none;
+      padding: 0;
+      margin: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      > li > button {
+        cursor: pointer;
+        width: 40px;
+        height: 40px;
+        font-size: 24px;
+      }
+    }
+  }
+}

@@ -1,18 +1,52 @@
-import { ref } from 'vue';
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
-/** 新建Rect */
-const rectItemInit = (config: {
+export interface PointPosition {
+  A: { x: number; y: number };
+  B: { x: number; y: number };
+  C: { x: number; y: number };
+  D: { x: number; y: number };
+}
+export interface RectPosition {
   x: number;
   y: number;
   width: number;
   height: number;
-}) => {
+  rotation: number;
+}
+function isPointPosition(
+  position: Record<string, any>
+): position is PointPosition {
+  return position.A && position.B && position.C && position.D;
+}
+
+export type Position = PointPosition | RectPosition;
+export type IdPosition = {
+  id?: string;
+} & Position;
+
+export type RectForm = { id: string } & Position & {
+    fill?: string;
+    stroke?: string;
+  };
+
+/** 新建Rect */
+export const rectItemInit = (
+  config: {
+    id?: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    fill?: string;
+    stroke?: string;
+  },
+  callback?: (rect: Konva.Rect) => void
+) => {
   const rect = new Konva.Rect({
     ...config,
     draggable: true,
-    fill: `#ffffff33`,
-    stroke: '#2d3137',
+    fill: config.fill ? `${config.fill}33` : `#ffffff33`,
+    stroke: config.stroke ?? '#2d3137',
     strokeWidth: 2,
     name: 'rect',
   });
@@ -23,14 +57,18 @@ const rectItemInit = (config: {
       scaleX: 1,
       scaleY: 1,
     });
+    if (callback) {
+      callback(rect);
+    }
   });
   return rect;
 };
 /** 新建框 */
-const selectionRectInit = (
+export const selectionRectInit = (
   stage: Konva.Stage,
   layer: Konva.Layer,
-  tr: Konva.Transformer
+  tr: Konva.Transformer,
+  callback?: (rect: Konva.Rect) => void
 ) => {
   const selectionRectangle = new Konva.Rect({
     fill: 'rgba(0,0,255,0.5)',
@@ -93,6 +131,9 @@ const selectionRectInit = (
     });
 
     layer.add(rect);
+    if (callback) {
+      callback(rect);
+    }
   });
 
   // clicks should select/deselect shapes
@@ -116,7 +157,10 @@ const selectionRectInit = (
   return selectionRectangle;
 };
 
-const initWindowDrag = (stage: Konva.Stage, selectionRectangle: Konva.Rect) => {
+export const initWindowDrag = (
+  stage: Konva.Stage,
+  selectionRectangle: Konva.Rect
+) => {
   let draggingWindow: boolean = false;
   const draggingContext = {
     x: 0,
@@ -139,7 +183,7 @@ const initWindowDrag = (stage: Konva.Stage, selectionRectangle: Konva.Rect) => {
     }
   });
 
-  let timer: number | null;
+  let timer: NodeJS.Timeout | null;
   stage.on('mousemove', (e: KonvaEventObject<MouseEvent>) => {
     if (!selectionRectangle.visible()) {
       if (draggingWindow) {
@@ -170,7 +214,11 @@ const initWindowDrag = (stage: Konva.Stage, selectionRectangle: Konva.Rect) => {
   });
 };
 
-const initDelete = (stage: Konva.Stage, tr: Konva.Transformer) => {
+export const initDelete = (
+  stage: Konva.Stage,
+  tr: Konva.Transformer,
+  callback?: (rect: Konva.Rect) => void
+) => {
   stage.container().tabIndex = 1;
   stage.container().addEventListener(
     'keyup',
@@ -179,6 +227,9 @@ const initDelete = (stage: Konva.Stage, tr: Konva.Transformer) => {
       if (e.key === 'Delete') {
         tr.nodes().forEach((ele) => {
           ele.destroy();
+          if (callback) {
+            callback(ele as Konva.Rect);
+          }
         });
         tr.nodes([]);
       }
@@ -187,7 +238,11 @@ const initDelete = (stage: Konva.Stage, tr: Konva.Transformer) => {
   );
 };
 
-const konvaInit = (width: number, height: number) => {
+export const konvaInit = (
+  width: number,
+  height: number,
+  preRects?: RectForm[]
+) => {
   const stage = new Konva.Stage({
     container: 'container',
     width: width,
@@ -210,79 +265,51 @@ const konvaInit = (width: number, height: number) => {
   // 新建框
   const selectionRectangle = selectionRectInit(stage, layer, tr);
   layer.add(selectionRectangle);
-
+  if (preRects) {
+    preRects.forEach((item) => {
+      if (isPointPosition(item)) {
+        // TODO:
+      } else {
+        // TODO:
+        rectItemInit(item);
+      }
+    });
+  }
   initWindowDrag(stage, selectionRectangle);
   initDelete(stage, tr);
 
   return stage;
 };
 
-const rebuildContainer = (container: HTMLDivElement) => {
+export const rebuildContainer = (container: HTMLDivElement) => {
   const newElement = container.cloneNode(true);
   container.parentNode?.replaceChild(newElement, container);
   return newElement;
 };
 
-export default function InitStage() {
-  const imgRef = ref<HTMLImageElement>();
-
-  let imgWidth: number;
-
-  let times = 4;
-  /** 放大 */
-  const zoomIn = () => {
-    if (times <= 8 && imgWidth * (times / 4) <= 4000) {
-      times *= 2;
-    }
-    imgResize();
-  };
-  /** 缩小 */
-  const zoomOut = () => {
-    if (times >= 2) {
-      times /= 2;
-    }
-    imgResize();
-  };
-  let stage: Konva.Stage;
-  /** 放大缩小后调整img和konva的宽高 */
-  const imgResize = () => {
-    const img = imgRef.value as HTMLImageElement;
-    img.width = imgWidth * (times / 4);
-    // const reatSet = new Set(getAllRect());
-    // clear();
-    // stage = konvaInit(img.width, img.height);
-    stage.width(img.width);
-    stage.height(img.height);
-    stage.scale({
-      x: times / 4,
-      y: times / 4,
-    });
-  };
-  /** 图片加载完成后的回调 */
-  const handleLoad = () => {
-    const img = imgRef.value as HTMLImageElement;
-    imgWidth = img.width;
-    stage = konvaInit(img.width, img.height);
-  };
-  const clear = () => {
-    if (stage) {
-      const container = stage.container();
-      rebuildContainer(container);
-      stage.destroy();
-    }
-  };
-  const getAllRect = () => {
-    if (stage) {
-      return stage.find('.rect') as Array<Konva.Rect>;
-    }
-    return [];
-  };
-  return {
-    clear,
-    zoomIn,
-    zoomOut,
-    handleLoad,
-    getAllRect,
-    imgRef,
-  };
-}
+export const getAllRectWithPoints = (allRects: Array<Konva.Rect>) => {
+  const res = allRects.map<{ item: Konva.Rect } & IdPosition>((item) => ({
+    item,
+    id: item.id(),
+    A: { x: item.x(), y: item.y() },
+    B: {
+      x: item.x() + item.width() * Math.cos((item.rotation() * Math.PI) / 180),
+      y: item.y() + item.width() * Math.sin((item.rotation() * Math.PI) / 180),
+    },
+    C: {
+      x:
+        item.x() +
+        item.width() * Math.cos((item.rotation() * Math.PI) / 180) -
+        item.height() * Math.sin((item.rotation() * Math.PI) / 180),
+      y:
+        item.y() +
+        item.width() * Math.sin((item.rotation() * Math.PI) / 180) +
+        item.height() * Math.cos((item.rotation() * Math.PI) / 180),
+    },
+    D: {
+      x: item.x() - item.height() * Math.sin((item.rotation() * Math.PI) / 180),
+      y: item.y() + item.height() * Math.cos((item.rotation() * Math.PI) / 180),
+    },
+  }));
+  return res;
+};
